@@ -1,5 +1,3 @@
----
-
 # 📁 Data Directory
 
 This folder contains all datasets used in the **Sensor Fusion for Human Activity Recognition** project.
@@ -11,8 +9,6 @@ This folder contains all datasets used in the **Sensor Fusion for Human Activity
 * `README.md`: This file — explains how the data pipeline works
 
 **Note:** Both `raw/` and `processed/` are excluded from version control using `.gitignore` to keep the repository lightweight.
-
----
 
 ## ⚙️ How to Populate This Folder
 
@@ -44,7 +40,7 @@ This script will:
 
 Each `.parquet` file includes:
 
-* 561 extracted sensor features
+* Five hundred sixty-one extracted sensor features
 * `activity_id`: numerical label
 * `activity`: corresponding activity name
 * `subject`: subject identifier (1–30)
@@ -54,7 +50,7 @@ Each `.parquet` file includes:
 ## ✅ Output File Shapes
 
 | File          | Rows | Columns |
-| ------------- | ---- | ------- |
+|---------------|------|---------|
 | train.parquet | 7352 | 564     |
 | test.parquet  | 2947 | 564     |
 
