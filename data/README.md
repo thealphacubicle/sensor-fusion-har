@@ -54,6 +54,8 @@ Each `.parquet` file includes:
 | train.parquet | 7352 | 564     |
 | test.parquet  | 2947 | 564     |
 
+
+- **Note**: To view the actual data frames with the respective information, run `src/experiments/quickstart.ipynb`.
 ---
 
 If you run into issues, make sure:
