@@ -1,0 +1,1 @@
+Stores the scripts for the dashboard.

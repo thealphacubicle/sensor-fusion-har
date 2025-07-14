@@ -1,0 +1,29 @@
+# Core wrangling
+pandas
+numpy
+pyarrow
+scikit-learn
+xgboost
+joblib
+
+# Cloud & credentials
+boto3
+fsspec
+python-dotenv
+
+# Dashboard
+reflex
+plotly
+pillow
+
+# Experiment tracking
+wandb
+
+# Utilities
+knockknock
+argparse
+rich
+
+# Optional (if needed)
+# dask
+# streamlit
