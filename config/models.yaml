@@ -1,0 +1,22 @@
+models:
+  logistic:
+    class: LogisticRegressionModel
+
+  knn:
+    class: KNNModel
+    params:
+      n_neighbors: 5
+
+  xgb:
+    class: XGBModel
+    params:
+      max_depth: 6
+      n_estimators: 100
+
+  naive_bayes:
+    class: GaussianNBModel
+
+sensors:
+  - accel
+  - gyro
+  - fused

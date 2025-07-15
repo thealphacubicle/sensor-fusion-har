@@ -1,11 +1,15 @@
 # Core wrangling
-pandas
-numpy
+pandas~=2.3.1
+numpy~=2.3.1
 pyarrow
-scikit-learn
-xgboost
-joblib
+scikit-learn~=1.7.0
+xgboost~=3.0.2
+joblib~=1.5.1
 polars-lts-cpu
+
+# Data viz
+matplotlib~=3.10.3
+seaborn~=0.13.2
 
 
 # Cloud & credentials
@@ -19,9 +23,12 @@ plotly
 pillow
 
 # Experiment tracking
-wandb
+wandb~=0.21.0
 
 # Utilities
 knockknock
 argparse
 rich
+
+yaml~=0.2.5
+pyyaml~=6.0.2
