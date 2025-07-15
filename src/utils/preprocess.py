@@ -12,10 +12,12 @@ WRAPPER_URL = "https://archive.ics.uci.edu/static/public/240/human+activity+reco
 DATASET_DIR = RAW_DIR / "UCI HAR Dataset"
 NESTED_ZIP = RAW_DIR / "UCI HAR Dataset.zip"
 
+
 # === Activity Mapping ===
 def load_activity_map():
     df = pd.read_csv(DATASET_DIR / "activity_labels.txt", sep=r'\s+', header=None, names=["id", "label"])
     return dict(zip(df["id"], df["label"]))
+
 
 # === Feature Names (fixed for duplicates) ===
 def load_feature_names():
@@ -33,6 +35,7 @@ def load_feature_names():
             seen[name] += 1
             unique_names.append(f"{name}__{seen[name]}")
     return unique_names
+
 
 # === Downloader ===
 def download_and_extract():
@@ -58,6 +61,7 @@ def download_and_extract():
     ZIP_PATH.unlink()
     print(f"[✓] Dataset ready at {DATASET_DIR}")
 
+
 # === Preprocessing ===
 def load_split(split="train"):
     feature_names = load_feature_names()
@@ -71,6 +75,7 @@ def load_split(split="train"):
     df["activity"] = df["activity_id"].map(activity_map)
     return df
 
+
 def preprocess_and_save():
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -81,6 +86,7 @@ def preprocess_and_save():
     df_test.to_parquet(PROCESSED_DIR / "test.parquet", index=False)
 
     print(f"[✓] Saved to data/processed/: train.parquet ({df_train.shape}), test.parquet ({df_test.shape})")
+
 
 # === Entry Point ===
 if __name__ == "__main__":
