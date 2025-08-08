@@ -43,13 +43,13 @@ The script sequentially trains every enabled model on each sensor configuration 
 
 ### Dashboard
 
-A lightweight dashboard built with [Reflex](https://reflex.dev) visualizes training and test accuracy from the W&B project.
+A lightweight dashboard built with [Streamlit](https://streamlit.io) visualizes training and test accuracy from the W&B project.
 
 1. Ensure `WANDB_API_KEY` (and optionally `WANDB_ENTITY`) is set in your environment.
 2. Run the dashboard:
 
    ```bash
-   reflex run src/dashboard/app.py
+   streamlit run src/dashboard/app.py
    ```
 
 The page will display line charts of training and test accuracy for each run logged to W&B.
