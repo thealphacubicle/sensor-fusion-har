@@ -1,5 +1,5 @@
 notify:
-  send: true        # Set to false to disable desktop notifications
+  send: false        # Set to false to disable desktop notifications
   type: desktop     # This must be set to 'desktop' for now
 
 hyperparameters:
