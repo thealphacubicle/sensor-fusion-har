@@ -12,7 +12,10 @@ An experimental project for the DS5220 course using the UCI Human Activity Recog
    ```bash
    pip install -r requirements.txt
    ```
-3. Ensure the processed training and test data exist under `data/processed/` as `train.parquet` and `test.parquet` respectively.
+3. The training scripts expect processed parquet files under `data/processed/`. If they are missing, `main.py` will automatically
+   download the raw UCI HAR dataset, remove any overlapping `subject` ids between the train and test splits to avoid leakage,
+   and save cleaned `train.parquet` and `test.parquet` files. You can also run the preprocessing manually with
+   `python src/utils/preprocess.py`.
 
 ### Configuration
 
@@ -27,19 +30,14 @@ An experimental project for the DS5220 course using the UCI Human Activity Recog
    WANDB_API_KEY=your-key
    ```
 
-2. Run the data seed script to load the dataset locally:
-
-   ```bash
-   python src/utils/preprocess.py
-   ```
-
-3. Start the experiment:
+2. Start the experiment:
 
    ```bash
    python main.py
    ```
 
-The script sequentially trains every enabled model on each sensor configuration and logs metrics such as `train_accuracy` and `test_accuracy` to W&B. Desktop notifications are sent at the start and end of the experiment and after each model–sensor pair completes, when enabled in the training config.
+`main.py` will ensure the processed data is available before training. The script then sequentially trains every enabled model on each
+sensor configuration and logs metrics such as `train_accuracy` and `test_accuracy` to W&B. Desktop notifications are sent at the start and end of the experiment and after each model–sensor pair completes, when enabled in the training config.
 
 ### Dashboard
 

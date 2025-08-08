@@ -1,6 +1,7 @@
 import yaml
 import polars as pl
 import logging
+from pathlib import Path
 from src.models.LogisticRegression import LogisticRegressionModel
 from src.models.RandomForest import RFClassifierModel
 from src.models.KNN import KNNModel
@@ -8,6 +9,7 @@ from src.models.SVM import SVMModel
 from src.models.NaiveBayes import NaiveBayesModel
 from src.utils.trainer import Trainer, train_single_model
 from knockknock.desktop_sender import desktop_sender
+from src.utils import preprocess
 
 # Configure logging
 logging.basicConfig(
@@ -93,8 +95,16 @@ def main():
 
     # === Load Data ===
     logging.info("Loading training and test data...")
-    train_df = pl.read_parquet("data/processed/train.parquet")
-    test_df = pl.read_parquet("data/processed/test.parquet")
+    train_path = Path("data/processed/train.parquet")
+    test_path = Path("data/processed/test.parquet")
+
+    if not train_path.exists() or not test_path.exists():
+        logging.info("Processed parquet files not found. Running preprocessing...")
+        preprocess.download_and_extract()
+        preprocess.preprocess_and_save()
+
+    train_df = pl.read_parquet(train_path)
+    test_df = pl.read_parquet(test_path)
 
     X_train = train_df.drop(["activity", "subject"])
     y_train = train_df["activity"]

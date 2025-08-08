@@ -105,6 +105,21 @@ def preprocess_and_save():
     logger.info("Preprocessing test split")
     df_test = load_split("test")
 
+    # Ensure no subject leakage between train and test sets
+    overlap = set(df_train["subject"]).intersection(set(df_test["subject"]))
+    if overlap:
+        logger.warning(
+            "Found %d overlapping subject ids between train and test splits: %s",
+            len(overlap),
+            sorted(overlap)
+        )
+        df_train = df_train[~df_train["subject"].isin(overlap)]
+        df_test = df_test[~df_test["subject"].isin(overlap)]
+
+    # Log final shapes before saving
+    logger.info("Final train split shape: %s", df_train.shape)
+    logger.info("Final test split shape: %s", df_test.shape)
+
     train_path = PROCESSED_DIR / "train.parquet"
     test_path = PROCESSED_DIR / "test.parquet"
 
