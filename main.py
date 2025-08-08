@@ -7,6 +7,7 @@ from src.models.RandomForest import RFClassifierModel
 from src.models.KNN import KNNModel
 from src.models.SVM import SVMModel
 from src.models.NaiveBayes import NaiveBayesModel
+from src.models.ExtraTrees import ExtraTreesModel
 from src.utils.trainer import Trainer, train_single_model
 from knockknock.desktop_sender import desktop_sender
 from src.utils import preprocess
@@ -23,7 +24,8 @@ MODEL_CLASS_MAP = {
     "KNNModel": KNNModel,
     "RandomForestClassifier": RFClassifierModel,
     "GaussianNBModel": NaiveBayesModel,
-    "SVMModel": SVMModel
+    "SVMModel": SVMModel,
+    "ExtraTreesClassifier": ExtraTreesModel
 }
 
 VALID_MODEL_PARAMS = {
@@ -32,6 +34,7 @@ VALID_MODEL_PARAMS = {
     "knn": ["n_neighbors"],
     "svm": ["C", "kernel", "gamma"],
     "random_forest_classifier": ["n_estimators", "max_depth", "random_state"],
+    "extra_trees_classifier": ["n_estimators", "max_depth", "random_state"],
     "naive_bayes": [],
 }
 

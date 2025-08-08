@@ -22,6 +22,17 @@ An experimental project for the DS5220 course using the UCI Human Activity Recog
 * `config/models.yaml` – enables/disables models and sets default parameters.
 * `config/training_config.yaml` – defines notification preferences and hyperparameter grids for each model.
 
+### Supported Models
+
+The training pipeline includes the following classical machine learning models:
+
+* Logistic Regression
+* k-Nearest Neighbors
+* Support Vector Machine
+* Random Forest
+* Extra Trees
+* Naive Bayes
+
 ### Running Training
 
 1. Create a `.env` file in the root of the repository with your Weights & Biases API key:
