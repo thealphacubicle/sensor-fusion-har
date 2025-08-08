@@ -1,7 +1,6 @@
 import yaml
 import polars as pl
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from src.models.LogisticRegression import LogisticRegressionModel
 from src.models.RandomForest import RFClassifierModel
 from src.models.KNN import KNNModel
@@ -68,7 +67,6 @@ def main():
     training_config = Trainer.load_training_config("config/training_config.yaml")
 
     notify_config = training_config.get("notify", {"send": False, "type": "desktop"})
-    max_workers = training_config.get("max_workers", 2)
 
     models = [model_name for model_name in models_config["models"]
               if models_config["models"][model_name].get("enabled", False)]
@@ -89,17 +87,14 @@ def main():
     X_test = test_df.drop(["activity", "subject"])
     y_test = test_df["activity"]
 
-    # === Schedule Training Jobs ===
-    jobs = []
-
-    logging.info("Scheduling training jobs...")
+    # === Train Models Sequentially ===
     for model_name in models:
         details = models_config["models"][model_name]
         class_name = details["class"]
         params = sanitize_params(model_name, details.get("params", {}))
 
         for sensor in sensors:
-            logging.info(f"Preparing job for model: {model_name}, sensor: {sensor}")
+            logging.info(f"Training model: {model_name}, sensor: {sensor}")
             try:
                 model_instance = get_model_instance(class_name, params)
             except Exception as exc:
@@ -118,12 +113,7 @@ def main():
                 y_test,
             )
 
-            jobs.append((trainer_args, notify_config))
-
-    # === Execute in Parallel ===
-    logging.info(f"Executing {len(jobs)} jobs in parallel with max_workers={max_workers}...")
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        executor.map(lambda args: train_single_model(*args), jobs)
+            train_single_model(trainer_args, notify_config)
 
     logging.info("All training jobs completed.")
 
