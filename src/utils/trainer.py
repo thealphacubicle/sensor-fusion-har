@@ -1,47 +1,79 @@
-import wandb
-import matplotlib.pyplot as plt
-import seaborn as sns
-from pathlib import Path
 import tempfile
 import joblib
-from typing import Any, Optional
-import numpy as np
+import wandb
+import yaml
+from pathlib import Path
+from typing import Any, Dict, Tuple
+import matplotlib.pyplot as plt
+import seaborn as sns
+import logging
+from knockknock.desktop_sender import desktop_sender
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
+def train_single_model(
+    trainer_args: Tuple,
+    notify_config: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Trains a single model using a Trainer instance with optional desktop notification.
+
+    Args:
+        trainer_args (Tuple): Arguments to initialize the Trainer class.
+        notify_config (Dict[str, Any]): Dictionary containing notification preferences:
+            - send (bool): Whether to send a desktop notification.
+            - type (str): Only 'desktop' is supported.
+
+    Returns:
+        Dict[str, Any]: Evaluation results from the Trainer.
+    """
+    # Notification configuration only supports desktop notifications for now
+    send = notify_config.get("send", False)
+    notify_type = notify_config.get("type", "desktop")
+
+    # Run the training process using logger if notifications are not required
+    def _run():
+        trainer = Trainer(*trainer_args)
+        results = trainer.train_and_evaluate()
+        logger.info(f"[✓] Finished training {trainer.model_name} on {trainer.sensor_config}")
+        return results
+
+    # Default to running without notifications
+    if not send or notify_type != "desktop":
+        return _run()
+
+    # If notifications are enabled, wrap the run function with desktop_sender
+    @desktop_sender(title="Model Training Complete")
+    def _notified_run():
+        return _run()
+
+    return _notified_run()
 
 
 class Trainer:
     """
-    Trainer class for fitting machine learning models, evaluating performance,
-    logging metrics and artifacts to Weights & Biases (W&B), and saving outputs.
+    Trainer class for supervised model training and evaluation.
+
+    This class handles model training, evaluation, logging to Weights & Biases,
+    and saving models as artifacts. It supports loading a training configuration
+    from YAML and can be used in multiprocessing setups.
     """
 
     def __init__(
-        self,
-        model: Any,
-        model_name: str,
-        sensor_config: str,
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-        X_test: np.ndarray,
-        y_test: np.ndarray,
-        wandb_project: str = "sensor-fusion-har",
-        log_to_wandb: bool = True,
-        save_path: str = "models/"
+            self,
+            model: Any,
+            model_name: str,
+            sensor_config: str,
+            X_train: Any,
+            y_train: Any,
+            X_test: Any,
+            y_test: Any,
+            log_to_wandb: bool = True,
+            wandb_project: str = "sensor-fusion-har",
+            save_path: str = "models/",
     ) -> None:
-        """
-        Initialize the Trainer object.
-
-        Args:
-            model (Any): A model that implements the `train`, `evaluate`, and `predict` methods.
-            model_name (str): Identifier for the model (e.g., 'xgb', 'logistic').
-            sensor_config (str): Description of the sensor data configuration (e.g., 'fused', 'gyro').
-            X_train (np.ndarray): Training features.
-            y_train (np.ndarray): Training labels.
-            X_test (np.ndarray): Testing features.
-            y_test (np.ndarray): Testing labels.
-            wandb_project (str): W&B project name.
-            log_to_wandb (bool): Whether to enable W&B logging.
-            save_path (str): Path to save models (not used if W&B artifact logging is enabled).
-        """
         self.model = model
         self.model_name = model_name
         self.sensor_config = sensor_config
@@ -52,24 +84,29 @@ class Trainer:
         self.y_test = y_test
 
         self.log_to_wandb = log_to_wandb
+        self.wandb_project = wandb_project
         self.save_path = Path(save_path)
-        self.run: Optional[wandb.sdk.wandb_run.Run] = None
+        self.run = None
 
-        if self.log_to_wandb:
+        if log_to_wandb:
             self.run = wandb.init(
                 project=wandb_project,
                 config={
                     "model": model_name,
-                    "sensor_config": sensor_config
+                    "sensor_config": sensor_config,
                 },
                 name=f"{model_name}_{sensor_config}",
-                reinit=True
+                reinit=True,
             )
 
-    def train_and_evaluate(self) -> None:
+    def train_and_evaluate(self) -> Dict[str, Any]:
         """
-        Train the model, evaluate it, and optionally log results and save the model.
+        Train the model, evaluate it on both train and test data,
+        log metrics and artifacts to W&B, and return results.
         """
+        logger = logging.getLogger(__name__)
+        logger.info(f"Training model: {self.model_name} on sensor config: {self.sensor_config}")
+
         self.model.train(self.X_train, self.y_train)
         results = self.model.evaluate(self.X_train, self.y_train, self.X_test, self.y_test)
 
@@ -81,50 +118,52 @@ class Trainer:
         if self.run:
             self.run.finish()
 
+        return results
+
     def _save_model(self) -> None:
         """
-        Save the trained model as a Weights & Biases artifact.
+        Save the trained model to Weights & Biases as an artifact.
         """
-        if not self.log_to_wandb:
-            return
-
         with tempfile.NamedTemporaryFile(delete=False, suffix=".joblib") as tmp_file:
             joblib.dump(self.model.model, tmp_file.name)
 
             artifact = wandb.Artifact(
                 name=f"{self.model_name}_{self.sensor_config}_model",
                 type="model",
-                description=f"{self.model_name} trained on {self.sensor_config} data",
+                description=f"{self.model_name} trained on {self.sensor_config}",
                 metadata={
                     "model": self.model_name,
-                    "sensor_config": self.sensor_config
-                }
+                    "sensor_config": self.sensor_config,
+                },
             )
             artifact.add_file(tmp_file.name)
             wandb.log_artifact(artifact)
 
-    def _log_metrics(self, results: dict) -> None:
+    def _log_metrics(self, results: Dict[str, Any]) -> None:
         """
-        Log evaluation metrics to W&B.
+        Log evaluation metrics to Weights & Biases.
 
         Args:
-            results (dict): Dictionary containing metrics such as accuracy and F1 scores.
+            results (Dict[str, Any]): Dictionary containing metric results.
         """
         wandb.log({
             "train_accuracy": results["train_accuracy"],
             "test_accuracy": results["test_accuracy"],
             "train_f1": results["train_f1"],
             "test_f1": results["test_f1"],
-            "generalization_gap": results["generalization_gap"]
+            "generalization_gap": results["generalization_gap"],
         })
 
-    def _log_confusion_matrix(self, conf_matrix: np.ndarray) -> None:
+    def _log_confusion_matrix(self, conf_matrix: Any) -> None:
         """
-        Log a confusion matrix visualization to W&B.
+        Save and log the confusion matrix to W&B.
 
         Args:
-            conf_matrix (np.ndarray): Confusion matrix from evaluation.
+            conf_matrix (np.ndarray): Confusion matrix.
         """
+        output_dir = Path("outputs/plots")
+        output_dir.mkdir(parents=True, exist_ok=True)
+
         plt.figure(figsize=(8, 6))
         sns.heatmap(conf_matrix, annot=True, fmt='d', cmap="Blues")
         plt.title("Confusion Matrix")
@@ -132,9 +171,24 @@ class Trainer:
         plt.ylabel("Actual")
         plt.tight_layout()
 
-        plot_path = "outputs/plots/conf_matrix.png"
-        Path("outputs/plots").mkdir(parents=True, exist_ok=True)
+        plot_path = output_dir / f"conf_matrix_{self.model_name}_{self.sensor_config}.png"
         plt.savefig(plot_path)
-
-        wandb.log({"confusion_matrix": wandb.Image(plot_path)})
+        wandb.log({"confusion_matrix": wandb.Image(str(plot_path))})
         plt.close()
+
+    @staticmethod
+    def load_training_config(config_path: str = "config/training_config.yaml") -> dict:
+        """
+        Loads training configuration from a YAML file.
+
+        Args:
+            config_path (str): Relative or absolute path to the YAML config file.
+
+        Returns:
+            dict: Parsed YAML configuration.
+        """
+        config_file = Path(config_path)
+        if not config_file.exists():
+            raise FileNotFoundError(f"Training config file not found at {config_path}")
+        with open(config_file, "r") as f:
+            return yaml.safe_load(f)

@@ -1,0 +1,5 @@
+notify:
+  send: true        # Set to false to disable desktop notifications
+  type: desktop     # This must be set to 'desktop' for now
+
+max_workers: 4       # Optional: Number of parallel processes to use (set to 0 for safe mode)
