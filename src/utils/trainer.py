@@ -89,12 +89,11 @@ class Trainer:
         self.run = None
 
         if log_to_wandb:
+            config = {"model": model_name, "sensor_config": sensor_config}
+            config.update(getattr(self.model, "kwargs", {}))
             self.run = wandb.init(
                 project=wandb_project,
-                config={
-                    "model": model_name,
-                    "sensor_config": sensor_config,
-                },
+                config=config,
                 name=f"{model_name}_{sensor_config}",
                 reinit=True,
             )
@@ -146,13 +145,8 @@ class Trainer:
         Args:
             results (Dict[str, Any]): Dictionary containing metric results.
         """
-        wandb.log({
-            "train_accuracy": results["train_accuracy"],
-            "test_accuracy": results["test_accuracy"],
-            "train_f1": results["train_f1"],
-            "test_f1": results["test_f1"],
-            "generalization_gap": results["generalization_gap"],
-        })
+        metrics = {k: v for k, v in results.items() if k != "confusion_matrix"}
+        wandb.log(metrics)
 
     def _log_confusion_matrix(self, conf_matrix: Any) -> None:
         """

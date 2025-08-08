@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from src.models.LogisticRegression import LogisticRegressionModel
 from src.models.RandomForest import RFClassifierModel
 from src.models.KNN import KNNModel
-# from src.models.XGB import XGBModel
+from src.models.SVM import SVMModel
 from src.models.NaiveBayes import NaiveBayesModel
 from src.utils.trainer import Trainer, train_single_model
 
@@ -20,7 +20,8 @@ MODEL_CLASS_MAP = {
     "LogisticRegressionModel": LogisticRegressionModel,
     "KNNModel": KNNModel,
     "RandomForestClassifier": RFClassifierModel,
-    "GaussianNBModel": NaiveBayesModel
+    "GaussianNBModel": NaiveBayesModel,
+    "SVMModel": SVMModel
 }
 
 
