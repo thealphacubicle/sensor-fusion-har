@@ -76,6 +76,8 @@ def main():
     sensors = models_config["sensors"]
     logging.info(f"Trainable sensors: {sensors}")
 
+    # Hyperparameter grid for each model
+    hyper_grid = training_config.get("hyperparameters", {})
 
     # === Load Data ===
     logging.info("Loading training and test data...")
@@ -91,29 +93,37 @@ def main():
     for model_name in models:
         details = models_config["models"][model_name]
         class_name = details["class"]
-        params = sanitize_params(model_name, details.get("params", {}))
+        base_params = sanitize_params(model_name, details.get("params", {}))
 
-        for sensor in sensors:
-            logging.info(f"Training model: {model_name}, sensor: {sensor}")
-            try:
-                model_instance = get_model_instance(class_name, params)
-            except Exception as exc:
-                logging.exception(
-                    f"Failed to instantiate model {model_name} with params {params}: {exc}"
+        # Load hyperparameter combinations; default to one set if none provided
+        param_grid = hyper_grid.get(model_name, [{}])
+
+        for combo in param_grid:
+            combo_params = sanitize_params(model_name, {**base_params, **combo})
+
+            for sensor in sensors:
+                logging.info(
+                    f"Training model: {model_name}, sensor: {sensor}, params: {combo_params}"
                 )
-                continue
+                try:
+                    model_instance = get_model_instance(class_name, combo_params)
+                except Exception as exc:
+                    logging.exception(
+                        f"Failed to instantiate model {model_name} with params {combo_params}: {exc}"
+                    )
+                    continue
 
-            trainer_args = (
-                model_instance,
-                model_name,
-                sensor,
-                X_train,
-                y_train,
-                X_test,
-                y_test,
-            )
+                trainer_args = (
+                    model_instance,
+                    model_name,
+                    sensor,
+                    X_train,
+                    y_train,
+                    X_test,
+                    y_test,
+                )
 
-            train_single_model(trainer_args, notify_config)
+                train_single_model(trainer_args, notify_config)
 
     logging.info("All training jobs completed.")
 
