@@ -1,34 +1,9 @@
-# Core wrangling
-pandas~=2.3.1
-numpy~=2.3.1
-pyarrow
-scikit-learn~=1.7.0
-xgboost~=3.0.2
 joblib~=1.5.1
-polars-lts-cpu
-
-# Data viz
-matplotlib~=3.10.3
-seaborn~=0.13.2
-
-
-# Cloud & credentials
-boto3
-fsspec
-python-dotenv
-
-# Dashboard
-reflex
-plotly
-pillow
-
-# Experiment tracking
 wandb~=0.21.0
-
-# Utilities
-knockknock
-argparse
-rich
-
 yaml~=0.2.5
 pyyaml~=6.0.2
+matplotlib~=3.10.3
+seaborn~=0.13.2
+knockknock~=0.1.8.1
+pandas~=2.3.1
+scikit-learn~=1.7.0
