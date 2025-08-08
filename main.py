@@ -85,7 +85,13 @@ def main():
 
         for sensor in sensors:
             logging.info(f"Preparing job for model: {model_name}, sensor: {sensor}")
-            model_instance = get_model_instance(class_name, params)
+            try:
+                model_instance = get_model_instance(class_name, params)
+            except Exception as exc:
+                logging.exception(
+                    f"Failed to instantiate model {model_name} with params {params}: {exc}"
+                )
+                continue
 
             trainer_args = (
                 model_instance,

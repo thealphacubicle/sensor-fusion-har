@@ -91,6 +91,7 @@ class Trainer:
         if log_to_wandb:
             config = {"model": model_name, "sensor_config": sensor_config}
             config.update(getattr(self.model, "kwargs", {}))
+            # Initialize a dedicated run so subsequent logging calls have an active context
             self.run = wandb.init(
                 project=wandb_project,
                 config=config,
@@ -109,7 +110,7 @@ class Trainer:
         self.model.train(self.X_train, self.y_train)
         results = self.model.evaluate(self.X_train, self.y_train, self.X_test, self.y_test)
 
-        if self.log_to_wandb:
+        if self.log_to_wandb and self.run:
             self._log_metrics(results)
             self._log_confusion_matrix(results["confusion_matrix"])
             self._save_model()
@@ -136,7 +137,8 @@ class Trainer:
                 },
             )
             artifact.add_file(tmp_file.name)
-            wandb.log_artifact(artifact)
+            if self.run:
+                self.run.log_artifact(artifact)
 
     def _log_metrics(self, results: Dict[str, Any]) -> None:
         """
@@ -145,8 +147,11 @@ class Trainer:
         Args:
             results (Dict[str, Any]): Dictionary containing metric results.
         """
+        if not self.run:
+            return
         metrics = {k: v for k, v in results.items() if k != "confusion_matrix"}
-        wandb.log(metrics)
+        # Log metrics using the active run to ensure consistency
+        self.run.log(metrics)
 
     def _log_confusion_matrix(self, conf_matrix: Any) -> None:
         """
@@ -167,7 +172,8 @@ class Trainer:
 
         plot_path = output_dir / f"conf_matrix_{self.model_name}_{self.sensor_config}.png"
         plt.savefig(plot_path)
-        wandb.log({"confusion_matrix": wandb.Image(str(plot_path))})
+        if self.run:
+            self.run.log({"confusion_matrix": wandb.Image(str(plot_path))})
         plt.close()
 
     @staticmethod
