@@ -1,5 +1,6 @@
 import tempfile
 import joblib
+import uuid
 import wandb
 import yaml
 from pathlib import Path
@@ -7,7 +8,6 @@ from typing import Any, Dict, Tuple
 import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
-from knockknock.desktop_sender import desktop_sender
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -15,41 +15,22 @@ logger.setLevel(logging.INFO)
 
 def train_single_model(
     trainer_args: Tuple,
-    notify_config: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """
-    Trains a single model using a Trainer instance with optional desktop notification.
-
-    Args:
-        trainer_args (Tuple): Arguments to initialize the Trainer class.
-        notify_config (Dict[str, Any]): Dictionary containing notification preferences:
-            - send (bool): Whether to send a desktop notification.
-            - type (str): Only 'desktop' is supported.
-
-    Returns:
-        Dict[str, Any]: Evaluation results from the Trainer.
-    """
-    # Notification configuration only supports desktop notifications for now
-    send = notify_config.get("send", False)
-    notify_type = notify_config.get("type", "desktop")
-
-    # Run the training process using logger if notifications are not required
-    def _run():
-        trainer = Trainer(*trainer_args)
+    """Train a single model using a Trainer instance."""
+    trainer = Trainer(*trainer_args)
+    config = {"model": trainer.model_name, "sensor_config": trainer.sensor_config}
+    config.update(getattr(trainer.model, "kwargs", {}))
+    run_name = f"{trainer.model_name}_{trainer.sensor_config}_{uuid.uuid4().hex[:6]}"
+    with wandb.init(
+        project="sensor-fusion-har",
+        name=run_name,
+        config=config,
+        settings=wandb.Settings(start_method="thread"),
+    ):
         results = trainer.train_and_evaluate()
-        logger.info(f"[✓] Finished training {trainer.model_name} on {trainer.sensor_config}")
-        return results
-
-    # Default to running without notifications
-    if not send or notify_type != "desktop":
-        return _run()
-
-    # If notifications are enabled, wrap the run function with desktop_sender
-    @desktop_sender(title="Model Training Complete")
-    def _notified_run():
-        return _run()
-
-    return _notified_run()
+    log_msg = f"[✓] Finished training {trainer.model_name} on {trainer.sensor_config}"
+    logger.info(log_msg.replace("`", "'"))
+    return results
 
 
 class Trainer:
@@ -86,18 +67,6 @@ class Trainer:
         self.log_to_wandb = log_to_wandb
         self.wandb_project = wandb_project
         self.save_path = Path(save_path)
-        self.run = None
-
-        if log_to_wandb:
-            self.run = wandb.init(
-                project=wandb_project,
-                config={
-                    "model": model_name,
-                    "sensor_config": sensor_config,
-                },
-                name=f"{model_name}_{sensor_config}",
-                reinit=True,
-            )
 
     def train_and_evaluate(self) -> Dict[str, Any]:
         """
@@ -110,13 +79,10 @@ class Trainer:
         self.model.train(self.X_train, self.y_train)
         results = self.model.evaluate(self.X_train, self.y_train, self.X_test, self.y_test)
 
-        if self.log_to_wandb:
+        if self.log_to_wandb and wandb.run:
             self._log_metrics(results)
             self._log_confusion_matrix(results["confusion_matrix"])
             self._save_model()
-
-        if self.run:
-            self.run.finish()
 
         return results
 
@@ -137,7 +103,8 @@ class Trainer:
                 },
             )
             artifact.add_file(tmp_file.name)
-            wandb.log_artifact(artifact)
+            if wandb.run:
+                wandb.log_artifact(artifact)
 
     def _log_metrics(self, results: Dict[str, Any]) -> None:
         """
@@ -146,13 +113,11 @@ class Trainer:
         Args:
             results (Dict[str, Any]): Dictionary containing metric results.
         """
-        wandb.log({
-            "train_accuracy": results["train_accuracy"],
-            "test_accuracy": results["test_accuracy"],
-            "train_f1": results["train_f1"],
-            "test_f1": results["test_f1"],
-            "generalization_gap": results["generalization_gap"],
-        })
+        if not wandb.run:
+            return
+        metrics = {k: v for k, v in results.items() if k != "confusion_matrix"}
+        # Log metrics using the active run to ensure consistency
+        wandb.log(metrics)
 
     def _log_confusion_matrix(self, conf_matrix: Any) -> None:
         """
@@ -173,7 +138,8 @@ class Trainer:
 
         plot_path = output_dir / f"conf_matrix_{self.model_name}_{self.sensor_config}.png"
         plt.savefig(plot_path)
-        wandb.log({"confusion_matrix": wandb.Image(str(plot_path))})
+        if wandb.run:
+            wandb.log({"confusion_matrix": wandb.Image(str(plot_path))})
         plt.close()
 
     @staticmethod
