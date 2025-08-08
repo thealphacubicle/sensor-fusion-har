@@ -49,7 +49,7 @@ A lightweight dashboard built with [Streamlit](https://streamlit.io) visualizes 
 2. Run the dashboard:
 
    ```bash
-   streamlit run src/dashboard/app.py
+   python -m streamlit run src/dashboard/app.py
    ```
 
 The page will display line charts of training and test accuracy for each run logged to W&B.
