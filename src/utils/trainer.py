@@ -1,5 +1,6 @@
 import tempfile
 import joblib
+import uuid
 import wandb
 import yaml
 from pathlib import Path
@@ -36,8 +37,18 @@ def train_single_model(
     # Run the training process using logger if notifications are not required
     def _run():
         trainer = Trainer(*trainer_args)
-        results = trainer.train_and_evaluate()
-        logger.info(f"[✓] Finished training {trainer.model_name} on {trainer.sensor_config}")
+        config = {"model": trainer.model_name, "sensor_config": trainer.sensor_config}
+        config.update(getattr(trainer.model, "kwargs", {}))
+        run_name = f"{trainer.model_name}_{trainer.sensor_config}_{uuid.uuid4().hex[:6]}"
+        with wandb.init(
+            project="sensor-fusion-har",
+            name=run_name,
+            config=config,
+            settings=wandb.Settings(start_method="thread"),
+        ):
+            results = trainer.train_and_evaluate()
+        log_msg = f"[✓] Finished training {trainer.model_name} on {trainer.sensor_config}"
+        logger.info(log_msg.replace("`", "'"))
         return results
 
     # Default to running without notifications
@@ -86,18 +97,6 @@ class Trainer:
         self.log_to_wandb = log_to_wandb
         self.wandb_project = wandb_project
         self.save_path = Path(save_path)
-        self.run = None
-
-        if log_to_wandb:
-            config = {"model": model_name, "sensor_config": sensor_config}
-            config.update(getattr(self.model, "kwargs", {}))
-            # Initialize a dedicated run so subsequent logging calls have an active context
-            self.run = wandb.init(
-                project=wandb_project,
-                config=config,
-                name=f"{model_name}_{sensor_config}",
-                reinit=True,
-            )
 
     def train_and_evaluate(self) -> Dict[str, Any]:
         """
@@ -110,13 +109,10 @@ class Trainer:
         self.model.train(self.X_train, self.y_train)
         results = self.model.evaluate(self.X_train, self.y_train, self.X_test, self.y_test)
 
-        if self.log_to_wandb and self.run:
+        if self.log_to_wandb and wandb.run:
             self._log_metrics(results)
             self._log_confusion_matrix(results["confusion_matrix"])
             self._save_model()
-
-        if self.run:
-            self.run.finish()
 
         return results
 
@@ -137,8 +133,8 @@ class Trainer:
                 },
             )
             artifact.add_file(tmp_file.name)
-            if self.run:
-                self.run.log_artifact(artifact)
+            if wandb.run:
+                wandb.log_artifact(artifact)
 
     def _log_metrics(self, results: Dict[str, Any]) -> None:
         """
@@ -147,11 +143,11 @@ class Trainer:
         Args:
             results (Dict[str, Any]): Dictionary containing metric results.
         """
-        if not self.run:
+        if not wandb.run:
             return
         metrics = {k: v for k, v in results.items() if k != "confusion_matrix"}
         # Log metrics using the active run to ensure consistency
-        self.run.log(metrics)
+        wandb.log(metrics)
 
     def _log_confusion_matrix(self, conf_matrix: Any) -> None:
         """
@@ -172,8 +168,8 @@ class Trainer:
 
         plot_path = output_dir / f"conf_matrix_{self.model_name}_{self.sensor_config}.png"
         plt.savefig(plot_path)
-        if self.run:
-            self.run.log({"confusion_matrix": wandb.Image(str(plot_path))})
+        if wandb.run:
+            wandb.log({"confusion_matrix": wandb.Image(str(plot_path))})
         plt.close()
 
     @staticmethod

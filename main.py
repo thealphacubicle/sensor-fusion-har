@@ -24,6 +24,21 @@ MODEL_CLASS_MAP = {
     "SVMModel": SVMModel
 }
 
+VALID_MODEL_PARAMS = {
+    "logistic_ovr": ["max_iter", "multi_class", "solver", "random_state"],
+    "logistic_multinomial": ["max_iter", "multi_class", "solver", "random_state"],
+    "knn": ["n_neighbors"],
+    "svm": ["C", "kernel", "gamma"],
+    "random_forest_classifier": ["n_estimators", "max_depth", "random_state"],
+    "naive_bayes": [],
+}
+
+
+def sanitize_params(model_name: str, params: dict) -> dict:
+    """Return only parameters valid for the specified model."""
+    allowed = VALID_MODEL_PARAMS.get(model_name, [])
+    return {k: v for k, v in params.items() if k in allowed}
+
 
 def get_model_instance(class_name: str, params: dict = None):
     """
@@ -81,7 +96,7 @@ def main():
     for model_name in models:
         details = models_config["models"][model_name]
         class_name = details["class"]
-        params = details.get("params", {})
+        params = sanitize_params(model_name, details.get("params", {}))
 
         for sensor in sensors:
             logging.info(f"Preparing job for model: {model_name}, sensor: {sensor}")
