@@ -1,6 +1,5 @@
 import os
 from typing import List
-
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -46,7 +45,6 @@ def main() -> None:
         labels={"run": "Run", "value": "Accuracy", "variable": "Metric"},
     )
     st.plotly_chart(fig, use_container_width=True)
-
 
 if __name__ == "__main__":
     main()
