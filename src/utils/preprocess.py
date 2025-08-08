@@ -88,10 +88,14 @@ def preprocess_and_save():
 
     # Ensure no subject leakage between train and test sets
     overlap = set(df_train["subject"]).intersection(set(df_test["subject"]))
+
     if overlap:
         print(f"[!] Found overlapping subject ids: {sorted(overlap)}. Removing them.")
         df_train = df_train[~df_train["subject"].isin(overlap)]
         df_test = df_test[~df_test["subject"].isin(overlap)]
+
+    else:
+        print("[✓] No overlapping subjects found.")
 
     print(f"[→] Final train shape: {df_train.shape}")
     print(f"[→] Final test shape: {df_test.shape}")
