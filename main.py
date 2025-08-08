@@ -7,6 +7,7 @@ from src.models.KNN import KNNModel
 from src.models.SVM import SVMModel
 from src.models.NaiveBayes import NaiveBayesModel
 from src.utils.trainer import Trainer, train_single_model
+from knockknock.desktop_sender import desktop_sender
 
 # Configure logging
 logging.basicConfig(
@@ -67,6 +68,17 @@ def main():
     training_config = Trainer.load_training_config("config/training_config.yaml")
 
     notify_config = training_config.get("notify", {"send": False, "type": "desktop"})
+    send_notifications = (
+        notify_config.get("send", False)
+        and notify_config.get("type", "desktop") == "desktop"
+    )
+
+    if send_notifications:
+        @desktop_sender(title="Training experiment started")
+        def _notify_start():
+            pass
+
+        _notify_start()
 
     models = [model_name for model_name in models_config["models"]
               if models_config["models"][model_name].get("enabled", False)]
@@ -98,34 +110,49 @@ def main():
         # Load hyperparameter combinations; default to one set if none provided
         param_grid = hyper_grid.get(model_name, [{}])
 
-        for combo in param_grid:
-            combo_params = sanitize_params(model_name, {**base_params, **combo})
-
-            for sensor in sensors:
-                logging.info(
-                    f"Training model: {model_name}, sensor: {sensor}, params: {combo_params}"
-                )
-                try:
-                    model_instance = get_model_instance(class_name, combo_params)
-                except Exception as exc:
-                    logging.exception(
-                        f"Failed to instantiate model {model_name} with params {combo_params}: {exc}"
+        for sensor in sensors:
+            def run_combinations():
+                for combo in param_grid:
+                    combo_params = sanitize_params(model_name, {**base_params, **combo})
+                    logging.info(
+                        f"Training model: {model_name}, sensor: {sensor}, params: {combo_params}"
                     )
-                    continue
+                    try:
+                        model_instance = get_model_instance(class_name, combo_params)
+                    except Exception as exc:
+                        logging.exception(
+                            f"Failed to instantiate model {model_name} with params {combo_params}: {exc}"
+                        )
+                        continue
 
-                trainer_args = (
-                    model_instance,
-                    model_name,
-                    sensor,
-                    X_train,
-                    y_train,
-                    X_test,
-                    y_test,
-                )
+                    trainer_args = (
+                        model_instance,
+                        model_name,
+                        sensor,
+                        X_train,
+                        y_train,
+                        X_test,
+                        y_test,
+                    )
 
-                train_single_model(trainer_args, notify_config)
+                    train_single_model(trainer_args)
+
+            if send_notifications:
+                notifier = desktop_sender(
+                    title=f"Finished {model_name} on {sensor}"
+                )(run_combinations)
+                notifier()
+            else:
+                run_combinations()
 
     logging.info("All training jobs completed.")
+
+    if send_notifications:
+        @desktop_sender(title="Training experiment completed")
+        def _notify_end():
+            pass
+
+        _notify_end()
 
 
 if __name__ == "__main__":

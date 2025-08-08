@@ -8,7 +8,6 @@ from typing import Any, Dict, Tuple
 import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
-from knockknock.desktop_sender import desktop_sender
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -16,51 +15,22 @@ logger.setLevel(logging.INFO)
 
 def train_single_model(
     trainer_args: Tuple,
-    notify_config: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """
-    Trains a single model using a Trainer instance with optional desktop notification.
-
-    Args:
-        trainer_args (Tuple): Arguments to initialize the Trainer class.
-        notify_config (Dict[str, Any]): Dictionary containing notification preferences:
-            - send (bool): Whether to send a desktop notification.
-            - type (str): Only 'desktop' is supported.
-
-    Returns:
-        Dict[str, Any]: Evaluation results from the Trainer.
-    """
-    # Notification configuration only supports desktop notifications for now
-    send = notify_config.get("send", False)
-    notify_type = notify_config.get("type", "desktop")
-
-    # Run the training process using logger if notifications are not required
-    def _run():
-        trainer = Trainer(*trainer_args)
-        config = {"model": trainer.model_name, "sensor_config": trainer.sensor_config}
-        config.update(getattr(trainer.model, "kwargs", {}))
-        run_name = f"{trainer.model_name}_{trainer.sensor_config}_{uuid.uuid4().hex[:6]}"
-        with wandb.init(
-            project="sensor-fusion-har",
-            name=run_name,
-            config=config,
-            settings=wandb.Settings(start_method="thread"),
-        ):
-            results = trainer.train_and_evaluate()
-        log_msg = f"[✓] Finished training {trainer.model_name} on {trainer.sensor_config}"
-        logger.info(log_msg.replace("`", "'"))
-        return results
-
-    # Default to running without notifications
-    if not send or notify_type != "desktop":
-        return _run()
-
-    # If notifications are enabled, wrap the run function with desktop_sender
-    @desktop_sender(title="Model Training Complete")
-    def _notified_run():
-        return _run()
-
-    return _notified_run()
+    """Train a single model using a Trainer instance."""
+    trainer = Trainer(*trainer_args)
+    config = {"model": trainer.model_name, "sensor_config": trainer.sensor_config}
+    config.update(getattr(trainer.model, "kwargs", {}))
+    run_name = f"{trainer.model_name}_{trainer.sensor_config}_{uuid.uuid4().hex[:6]}"
+    with wandb.init(
+        project="sensor-fusion-har",
+        name=run_name,
+        config=config,
+        settings=wandb.Settings(start_method="thread"),
+    ):
+        results = trainer.train_and_evaluate()
+    log_msg = f"[✓] Finished training {trainer.model_name} on {trainer.sensor_config}"
+    logger.info(log_msg.replace("`", "'"))
+    return results
 
 
 class Trainer:
